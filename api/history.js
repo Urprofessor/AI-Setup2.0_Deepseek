@@ -1,6 +1,6 @@
 // /api/history.js — CozyAI chat history, persisted in Upstash Redis (REST API)
-// Reads UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN from env vars.
-// Falls back to "no history" gracefully if Redis isn't configured yet.
+// Accepts either UPSTASH_REDIS_REST_* (direct Upstash) or KV_REST_API_* (Vercel
+// Marketplace integration) env vars. Falls back to "no history" if neither is set.
 
 export const config = {
   runtime: 'edge',
@@ -8,13 +8,19 @@ export const config = {
 
 const TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
+function redisUrl() {
+  return process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+}
+function redisToken() {
+  return process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+}
 function redisConfigured() {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return !!(redisUrl() && redisToken());
 }
 
 async function redisCommand(parts) {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = redisUrl();
+  const token = redisToken();
   const res = await fetch(`${url}/${parts.map(encodeURIComponent).join('/')}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
