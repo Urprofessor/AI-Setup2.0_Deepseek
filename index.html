@@ -1670,6 +1670,24 @@
     0%, 80%, 100% { transform: scale(0.6); opacity: .4; }
     40% { transform: scale(1); opacity: 1; }
   }
+  .cozy-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 2px;
+  }
+  .cozy-loading-icon {
+    width: 18px;
+    height: 18px;
+    animation: cozySpin 1s linear infinite;
+  }
+  .cozy-loading-text {
+    font-size: 14px;
+    color: #9B8488;
+  }
+  @keyframes cozySpin {
+    to { transform: rotate(360deg); }
+  }
   .cozy-reference {
     margin-top: 8px;
     font-size: 12px;
@@ -3446,6 +3464,17 @@ const COZY_SUPPORT_AVATARS = [
 const COZY_SUPPORT_AVATAR_FALLBACK = 'images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png';
 let cozyCurrentSupportAvatar = null;
 
+// QA loading state: spinning icon + random "thinking" line, no avatar.
+// Drop your loading icon into images/system/ and update the path below if you use a different filename.
+const COZY_LOADING_ICON = 'images/system/loading.svg';
+const COZY_THINKING_TEXTS = [
+  'Thinking...',
+  'Looking that up...',
+  'One moment...',
+  'Checking on that...',
+  'Working on it...',
+];
+
 function pickRandomSupportAvatar() {
   if (!COZY_SUPPORT_AVATARS.length) return COZY_SUPPORT_AVATAR_FALLBACK;
   return COZY_SUPPORT_AVATARS[Math.floor(Math.random() * COZY_SUPPORT_AVATARS.length)];
@@ -3695,11 +3724,19 @@ function appendCozyMessageEl(m) {
 
 function appendCozyThinking() {
   const wrap = document.getElementById('cozyMessages');
-  const av = cozyAvatarFor(cozyPersona);
   const row = document.createElement('div');
   row.className = 'cozy-msg-row from-ai';
-  row.innerHTML = `<div class="cozy-msg-meta"><img class="cozy-msg-avatar" src="${av.img}" alt=""><span class="cozy-msg-name">${av.name}</span></div>
-    <div class="cozy-thinking"><span></span><span></span><span></span></div>`;
+  if (cozyPersona === 'qa') {
+    const text = COZY_THINKING_TEXTS[Math.floor(Math.random() * COZY_THINKING_TEXTS.length)];
+    row.innerHTML = `<div class="cozy-loading">
+      <img class="cozy-loading-icon" src="${COZY_LOADING_ICON}" alt="">
+      <span class="cozy-loading-text">${text}</span>
+    </div>`;
+  } else {
+    const av = cozyAvatarFor(cozyPersona);
+    row.innerHTML = `<div class="cozy-msg-meta"><img class="cozy-msg-avatar" src="${av.img}" alt=""><span class="cozy-msg-name">${av.name}</span></div>
+      <div class="cozy-thinking"><span></span><span></span><span></span></div>`;
+  }
   wrap.appendChild(row);
   wrap.scrollTop = wrap.scrollHeight;
   return row;
@@ -3751,17 +3788,22 @@ function transitionHandoffTo(state, card) {
 
   if (state === 'queuing') {
     const totalMs = 30000 + Math.floor(Math.random() * 15000); // 30-45s
-    const perStep = Math.floor(totalMs / 3);
-    let queueNum = 3;
+    const startQueue = 2 + Math.floor(Math.random() * 4); // 2-5
+    const timeLabels = ['1-3 min', '1-2 min', '2-3 min'];
+    const timeText = timeLabels[Math.floor(Math.random() * timeLabels.length)];
+    const perStep = Math.floor(totalMs / startQueue);
+    let queueNum = startQueue;
     const renderQueue = () => {
       card.innerHTML = `
         <p class="cozy-handoff-text">You're in the queue</p>
-        <p class="cozy-handoff-queue">Estimated time: 5-8 min, Queue number: <strong>${queueNum}</strong></p>
+        <p class="cozy-handoff-queue">Estimated time: ${timeText}, Queue number: <strong>${queueNum}</strong></p>
         <button class="cozy-handoff-btn cozy-handoff-btn--ghost" onclick="cancelCozyHandoff(this)">Cancel request</button>`;
     };
     renderQueue();
-    cozyHandoffTimers.push(setTimeout(() => { queueNum = 2; renderQueue(); }, perStep));
-    cozyHandoffTimers.push(setTimeout(() => { queueNum = 1; renderQueue(); }, perStep * 2));
+    for (let i = 1; i < startQueue; i++) {
+      const stepIdx = i;
+      cozyHandoffTimers.push(setTimeout(() => { queueNum = startQueue - stepIdx; renderQueue(); }, perStep * i));
+    }
     cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('assigning', card), totalMs));
     return;
   }
