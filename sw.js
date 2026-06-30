@@ -1,4 +1,4 @@
-const CACHE = 'v1';
+const CACHE = 'v2';
 
 const PRECACHE = [
   '/',
@@ -77,6 +77,14 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+
+  // Never intercept non-GET (POST/PUT/DELETE) — Cache API doesn't support them
+  // and these are always dynamic (e.g. /api/history save, /api/chat stream).
+  if (e.request.method !== 'GET') return;
+
+  // Never cache API routes — responses are dynamic and per-device.
+  if (url.pathname.startsWith('/api/')) return;
+
   const isVideo = VIDEOS.some(v => url.pathname.endsWith(v.replace(/^.*\//, '/')));
 
   if (isVideo) {
