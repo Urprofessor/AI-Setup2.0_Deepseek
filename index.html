@@ -1679,6 +1679,57 @@
   }
   .cozy-reference a { color: #8A4A56; }
 
+  /* Tier-3 typography token (system messages, hints, loaders, date stamps) */
+  .cozy-tier-3 {
+    font-size: 12px;
+    font-weight: 400;
+    color: #9B8488;
+    text-align: center;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+
+  /* Welcome page: "Swipe up to view history" hint pill */
+  .cozy-history-hint {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border-radius: 100px;
+    padding: 8px 14px;
+    box-shadow: 0 4px 16px rgba(74,6,18,0.10);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    white-space: nowrap;
+  }
+  .cozy-history-hint.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .cozy-history-hint svg {
+    width: 14px; height: 14px;
+    color: #9B8488;
+    flex-shrink: 0;
+  }
+
+  /* Chat page: "View more news" / "All loaded" indicator at top of messages */
+  .cozy-load-more {
+    align-self: center;
+    padding: 4px 8px;
+    background: none;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .cozy-load-more.done { cursor: default; }
+  .cozy-load-more:active:not(.done) { opacity: 0.6; }
+
   /* handoff card */
   .cozy-handoff-card {
     background: #fff;
@@ -2249,6 +2300,10 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4A0612" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
     <span class="cozy-topbar-title">CozyAI</span>
+  </div>
+  <div class="cozy-history-hint cozy-tier-3" id="cozyHistoryHint" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <span>Swipe up to view history</span>
   </div>
   <div class="cozy-content">
     <img class="cozy-ip-avatar" src="images/IP_%E9%AB%98%E5%85%B4.png" alt="CozyAI" draggable="false">
@@ -3345,6 +3400,10 @@ let cozyStreaming = false;
 let cozyHistoryLoaded = false;
 let cozyReturnPage = 'welcome';
 
+// Pagination: 1 round = 1 user msg + 1 ai msg. Display 10 rounds at a time.
+const COZY_PAGE_SIZE = 20;
+let cozyDisplayFromIdx = 0;  // first index of cozyHistory currently rendered
+
 function getCozyDeviceId() {
   let id = localStorage.getItem('cozyDeviceId');
   if (!id) {
@@ -3435,7 +3494,10 @@ function setupCozySwipeDown() {
 }
 
 async function prefetchCozyHistory() {
-  if (cozyHistoryLoaded) return;
+  if (cozyHistoryLoaded) {
+    maybeShowHistoryHint();
+    return;
+  }
   try {
     const res = await fetch('/api/history?deviceId=' + encodeURIComponent(getCozyDeviceId()));
     if (!res.ok) return;
@@ -3445,6 +3507,18 @@ async function prefetchCozyHistory() {
       cozyHistoryLoaded = true;
     }
   } catch (e) { /* no history backend configured yet — ignore */ }
+  maybeShowHistoryHint();
+}
+
+let cozyHintTimer = null;
+function maybeShowHistoryHint() {
+  const hint = document.getElementById('cozyHistoryHint');
+  if (!hint) return;
+  if (!cozyHistory.length) return;
+  if (document.querySelector('.page.active')?.id !== 'cozyWelcome') return;
+  clearTimeout(cozyHintTimer);
+  requestAnimationFrame(() => hint.classList.add('show'));
+  cozyHintTimer = setTimeout(() => hint.classList.remove('show'), 2000);
 }
 
 function onCozyWelcomeInput() {
@@ -3475,6 +3549,7 @@ function sendFromChat() {
 
 function enterCozyChat() {
   navigate('cozyChat');
+  cozyDisplayFromIdx = Math.max(0, cozyHistory.length - COZY_PAGE_SIZE);
   renderCozyMessages();
 }
 
@@ -3488,8 +3563,39 @@ function cozyAvatarFor(persona) {
 function renderCozyMessages() {
   const wrap = document.getElementById('cozyMessages');
   wrap.innerHTML = '';
-  cozyHistory.forEach(m => appendCozyMessageEl(m));
+  renderCozyLoadMore();
+  for (let i = cozyDisplayFromIdx; i < cozyHistory.length; i++) {
+    appendCozyMessageEl(cozyHistory[i]);
+  }
   wrap.scrollTop = wrap.scrollHeight;
+}
+
+function renderCozyLoadMore() {
+  const wrap = document.getElementById('cozyMessages');
+  // Only show the tier-3 indicator once history has crossed the page size.
+  if (cozyHistory.length <= COZY_PAGE_SIZE) return;
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'cozy-load-more cozy-tier-3';
+  if (cozyDisplayFromIdx > 0) {
+    el.textContent = 'View more news';
+    el.onclick = loadMoreCozyHistory;
+  } else {
+    el.textContent = 'All loaded';
+    el.classList.add('done');
+    el.disabled = true;
+  }
+  wrap.appendChild(el);
+}
+
+function loadMoreCozyHistory() {
+  const wrap = document.getElementById('cozyMessages');
+  const prevHeight = wrap.scrollHeight;
+  cozyDisplayFromIdx = Math.max(0, cozyDisplayFromIdx - COZY_PAGE_SIZE);
+  renderCozyMessages();
+  // Preserve scroll position so newly prepended messages don't jump the view.
+  const newHeight = wrap.scrollHeight;
+  wrap.scrollTop = newHeight - prevHeight;
 }
 
 function appendCozyMessageEl(m) {
