@@ -3426,11 +3426,26 @@ const COZY_KEYWORDS = [
 ];
 
 let cozyEntryContext = null;
-let cozyHistory = [];        // [{role:'user'|'assistant', content, persona}]
+let cozyHistory = [];        // [{role:'user'|'assistant', content, persona, avatar}]
 let cozyPersona = 'qa';      // 'qa' | 'support'
 let cozyStreaming = false;
 let cozyHistoryLoaded = false;
 let cozyReturnPage = 'welcome';
+
+// Customer service avatar pool. One is picked at random when a handoff begins
+// and reused for the rest of that session. Drop new images into
+// images/customer service avatar/ and add their paths below (URL-encode spaces as %20).
+const COZY_SUPPORT_AVATARS = [
+  // 'images/customer%20service%20avatar/sarah-1.png',
+  // 'images/customer%20service%20avatar/sarah-2.png',
+];
+const COZY_SUPPORT_AVATAR_FALLBACK = 'images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png';
+let cozyCurrentSupportAvatar = null;
+
+function pickRandomSupportAvatar() {
+  if (!COZY_SUPPORT_AVATARS.length) return COZY_SUPPORT_AVATAR_FALLBACK;
+  return COZY_SUPPORT_AVATARS[Math.floor(Math.random() * COZY_SUPPORT_AVATARS.length)];
+}
 
 // Pagination: 1 round = 1 user msg + 1 ai msg. Display 10 rounds at a time.
 const COZY_PAGE_SIZE = 20;
@@ -3537,6 +3552,10 @@ async function prefetchCozyHistory() {
     if (Array.isArray(data.messages) && data.messages.length) {
       cozyHistory = data.messages;
       cozyHistoryLoaded = true;
+      // Restore the in-flight Sarah avatar so any new messages match prior ones.
+      for (let i = cozyHistory.length - 1; i >= 0; i--) {
+        if (cozyHistory[i].avatar) { cozyCurrentSupportAvatar = cozyHistory[i].avatar; break; }
+      }
     }
   } catch (e) { /* no history backend configured yet — ignore */ }
   maybeShowHistoryHint();
@@ -3586,10 +3605,12 @@ function enterCozyChat() {
 }
 
 // ---- rendering ----
-function cozyAvatarFor(persona) {
-  return persona === 'support'
-    ? { img: 'images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png', name: 'Sarah' }
-    : { img: 'images/IP_%E9%AB%98%E5%85%B4.png', name: 'CozyAI' };
+function cozyAvatarFor(persona, msg) {
+  if (persona === 'support') {
+    const img = (msg && msg.avatar) || cozyCurrentSupportAvatar || COZY_SUPPORT_AVATAR_FALLBACK;
+    return { img, name: 'Sarah' };
+  }
+  return { img: 'images/IP_%E9%AB%98%E5%85%B4.png', name: 'CozyAI' };
 }
 
 function renderCozyMessages() {
@@ -3646,7 +3667,7 @@ function appendCozyMessageEl(m) {
   row.className = 'cozy-msg-row ' + (m.role === 'user' ? 'from-user' : 'from-ai');
 
   if (m.role === 'assistant') {
-    const av = cozyAvatarFor(m.persona || 'qa');
+    const av = cozyAvatarFor(m.persona || 'qa', m);
     const meta = document.createElement('div');
     meta.className = 'cozy-msg-meta';
     meta.innerHTML = `<img class="cozy-msg-avatar" src="${av.img}" alt=""><span class="cozy-msg-name">${av.name}</span>`;
@@ -3681,13 +3702,14 @@ function appendCozyThinking() {
 }
 
 function appendCozyHandoffCard() {
+  cozyCurrentSupportAvatar = pickRandomSupportAvatar();
   const wrap = document.getElementById('cozyMessages');
   const row = document.createElement('div');
   row.className = 'cozy-msg-row from-ai';
   row.style.maxWidth = '92%';
   row.innerHTML = `
     <div class="cozy-handoff-card">
-      <img class="cozy-handoff-avatar" src="images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png" alt="">
+      <img class="cozy-handoff-avatar" src="${cozyCurrentSupportAvatar}" alt="">
       <p class="cozy-handoff-text">Connect you with a human customer service agent?</p>
       <p class="cozy-handoff-sub">Service hours: 9:00 AM–6:00 PM</p>
       <button class="cozy-handoff-btn" onclick="confirmCozyHandoff(this)">Contact an agent</button>
@@ -3741,8 +3763,9 @@ function transitionHandoffTo(state, card) {
   }
 
   if (state === 'assigning') {
+    const av = cozyCurrentSupportAvatar || pickRandomSupportAvatar();
     card.innerHTML = `
-      <img class="cozy-handoff-avatar" src="images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png" alt="">
+      <img class="cozy-handoff-avatar" src="${av}" alt="">
       <p class="cozy-handoff-text">Sarah has been assigned</p>
       <p class="cozy-handoff-sub">She is joining the conversation...</p>`;
     cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('joined', card), 1500));
@@ -3758,7 +3781,7 @@ function transitionHandoffTo(state, card) {
     const joinMsg = { role: 'system', content: 'Sarah joined the conversation.' };
     cozyHistory.push(joinMsg);
     appendCozyMessageEl(joinMsg);
-    const greeting = { role: 'assistant', content: "Hi! I'm Sarah from Momcozy support. I'm checking your case — give me a moment.", persona: 'support' };
+    const greeting = { role: 'assistant', content: "Hi! I'm Sarah from Momcozy support. I'm checking your case — give me a moment.", persona: 'support', avatar: cozyCurrentSupportAvatar };
     cozyHistory.push(greeting);
     appendCozyMessageEl(greeting);
     saveCozyHistory();
@@ -3850,7 +3873,9 @@ async function cozyStreamReply() {
   const cleanText = assistantText.replace(COZY_HANDOFF_TAG, '').replace(COZY_EXIT_TAG, '').trim();
   if (bubbleEl) bubbleEl.textContent = cleanText;
 
-  cozyHistory.push({ role: 'assistant', content: cleanText, persona: personaAtStart });
+  const assistantMsg = { role: 'assistant', content: cleanText, persona: personaAtStart };
+  if (personaAtStart === 'support') assistantMsg.avatar = cozyCurrentSupportAvatar || pickRandomSupportAvatar();
+  cozyHistory.push(assistantMsg);
   saveCozyHistory();
 
   if (personaAtStart === 'qa' && hasHandoff) {
@@ -3858,6 +3883,7 @@ async function cozyStreamReply() {
   }
   if (personaAtStart === 'support' && hasExit) {
     cozyPersona = 'qa';
+    cozyCurrentSupportAvatar = null;
     const endMsg = { role: 'system', content: 'Conversation ended' };
     cozyHistory.push(endMsg);
     appendCozyMessageEl(endMsg);
