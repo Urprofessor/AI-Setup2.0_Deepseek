@@ -3912,12 +3912,17 @@ async function cozyStreamReply() {
   }
 
   cozyStreaming = false;
-  if (!bubbleEl) thinkingRow.remove();
+  if (thinkingRow && thinkingRow.isConnected) thinkingRow.remove();
 
   const hasHandoff = assistantText.includes(COZY_HANDOFF_TAG);
   const hasExit = assistantText.includes(COZY_EXIT_TAG);
   const cleanText = assistantText.replace(COZY_HANDOFF_TAG, '').replace(COZY_EXIT_TAG, '').trim();
-  if (bubbleEl) bubbleEl.textContent = cleanText;
+  if (!bubbleEl && cleanText) {
+    const placeholder = appendCozyMessageEl({ role: 'assistant', content: cleanText, persona: personaAtStart });
+    bubbleEl = placeholder.bubble;
+  } else if (bubbleEl) {
+    bubbleEl.textContent = cleanText;
+  }
 
   const assistantMsg = { role: 'assistant', content: cleanText, persona: personaAtStart };
   if (personaAtStart === 'support') assistantMsg.avatar = cozyCurrentSupportAvatar || pickRandomSupportAvatar();
