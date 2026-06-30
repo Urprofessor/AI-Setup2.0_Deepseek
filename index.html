@@ -1762,6 +1762,38 @@
     cursor: pointer;
   }
   .cozy-handoff-btn:disabled { opacity: .6; }
+  .cozy-handoff-btn--ghost {
+    background: #F5F2F2;
+    color: #4A0612;
+    margin-top: 8px;
+  }
+  .cozy-handoff-spinner {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(74,6,18,0.12);
+    border-top-color: #4A0612;
+    border-radius: 50%;
+    margin: 4px auto 10px;
+    animation: cozySpin 0.9s linear infinite;
+  }
+  @keyframes cozySpin {
+    to { transform: rotate(360deg); }
+  }
+  .cozy-handoff-queue {
+    font-size: 12.5px;
+    color: #9B8488;
+    margin: 0 0 14px;
+    line-height: 1.4;
+  }
+  .cozy-handoff-queue strong { color: #4A0612; font-weight: 600; }
+
+  /* In-stream tier-3 system messages (Sarah joined / Conversation ended) */
+  .cozy-system-msg {
+    align-self: center;
+    text-align: center;
+    padding: 2px 12px;
+    margin: 4px 0;
+    max-width: 90%;
+  }
 
   /* === TIPS STEP PAGE === */
   #tipsStep { background: #FEF5F5; }
@@ -3556,7 +3588,7 @@ function enterCozyChat() {
 // ---- rendering ----
 function cozyAvatarFor(persona) {
   return persona === 'support'
-    ? { img: 'images/IP_%E9%AB%98%E5%85%B4.png', name: 'Cozy Agent' }
+    ? { img: 'images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png', name: 'Sarah' }
     : { img: 'images/IP_%E9%AB%98%E5%85%B4.png', name: 'CozyAI' };
 }
 
@@ -3600,6 +3632,16 @@ function loadMoreCozyHistory() {
 
 function appendCozyMessageEl(m) {
   const wrap = document.getElementById('cozyMessages');
+
+  if (m.role === 'system') {
+    const el = document.createElement('div');
+    el.className = 'cozy-system-msg cozy-tier-3';
+    el.textContent = m.content;
+    wrap.appendChild(el);
+    wrap.scrollTop = wrap.scrollHeight;
+    return { row: el, bubble: el };
+  }
+
   const row = document.createElement('div');
   row.className = 'cozy-msg-row ' + (m.role === 'user' ? 'from-user' : 'from-ai');
 
@@ -3654,14 +3696,73 @@ function appendCozyHandoffCard() {
   wrap.scrollTop = wrap.scrollHeight;
 }
 
+// Handoff state machine: connecting → queuing(3→2→1) → assigning → joined.
+// Holds active timers so Cancel can abort cleanly.
+let cozyHandoffTimers = [];
+
 function confirmCozyHandoff(btn) {
-  btn.disabled = true;
-  btn.textContent = 'Connecting...';
-  setTimeout(() => {
+  const card = btn.closest('.cozy-handoff-card');
+  if (!card) return;
+  transitionHandoffTo('connecting', card);
+}
+
+function cancelCozyHandoff(btn) {
+  cozyHandoffTimers.forEach(t => clearTimeout(t));
+  cozyHandoffTimers = [];
+  const row = btn.closest('.cozy-msg-row');
+  if (row) row.remove();
+}
+
+function transitionHandoffTo(state, card) {
+  if (state === 'connecting') {
+    card.innerHTML = `
+      <div class="cozy-handoff-spinner"></div>
+      <p class="cozy-handoff-text">Connecting you with customer service...</p>
+      <button class="cozy-handoff-btn cozy-handoff-btn--ghost" onclick="cancelCozyHandoff(this)">Cancel request</button>`;
+    cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('queuing', card), 1500));
+    return;
+  }
+
+  if (state === 'queuing') {
+    const totalMs = 30000 + Math.floor(Math.random() * 15000); // 30-45s
+    const perStep = Math.floor(totalMs / 3);
+    let queueNum = 3;
+    const renderQueue = () => {
+      card.innerHTML = `
+        <p class="cozy-handoff-text">You're in the queue</p>
+        <p class="cozy-handoff-queue">Estimated time: 5-8 min, Queue number: <strong>${queueNum}</strong></p>
+        <button class="cozy-handoff-btn cozy-handoff-btn--ghost" onclick="cancelCozyHandoff(this)">Cancel request</button>`;
+    };
+    renderQueue();
+    cozyHandoffTimers.push(setTimeout(() => { queueNum = 2; renderQueue(); }, perStep));
+    cozyHandoffTimers.push(setTimeout(() => { queueNum = 1; renderQueue(); }, perStep * 2));
+    cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('assigning', card), totalMs));
+    return;
+  }
+
+  if (state === 'assigning') {
+    card.innerHTML = `
+      <img class="cozy-handoff-avatar" src="images/%E4%BA%BA%E5%B7%A5%E5%AE%A2%E6%9C%8D%E6%A0%B7%E5%BC%8F.png" alt="">
+      <p class="cozy-handoff-text">Sarah has been assigned</p>
+      <p class="cozy-handoff-sub">She is joining the conversation...</p>`;
+    cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('joined', card), 1500));
+    return;
+  }
+
+  if (state === 'joined') {
+    cozyHandoffTimers = [];
+    // Remove the card, switch persona, drop the join + greeting into history.
+    const row = card.closest('.cozy-msg-row');
+    if (row) row.remove();
     cozyPersona = 'support';
-    btn.textContent = 'Connected';
+    const joinMsg = { role: 'system', content: 'Sarah joined the conversation.' };
+    cozyHistory.push(joinMsg);
+    appendCozyMessageEl(joinMsg);
+    const greeting = { role: 'assistant', content: "Hi! I'm Sarah from Momcozy support. I'm checking your case — give me a moment.", persona: 'support' };
+    cozyHistory.push(greeting);
+    appendCozyMessageEl(greeting);
     saveCozyHistory();
-  }, 400);
+  }
 }
 
 // ---- sending / streaming ----
@@ -3697,7 +3798,9 @@ async function cozyStreamReply() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         persona: personaAtStart,
-        messages: cozyHistory.map(m => ({ role: m.role, content: m.content }))
+        messages: cozyHistory
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({ role: m.role, content: m.content }))
       })
     });
     if (!res.ok || !res.body) throw new Error('AI request failed');
@@ -3755,6 +3858,10 @@ async function cozyStreamReply() {
   }
   if (personaAtStart === 'support' && hasExit) {
     cozyPersona = 'qa';
+    const endMsg = { role: 'system', content: 'Conversation ended' };
+    cozyHistory.push(endMsg);
+    appendCozyMessageEl(endMsg);
+    saveCozyHistory();
   }
 }
 
