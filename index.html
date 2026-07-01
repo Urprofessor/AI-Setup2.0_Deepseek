@@ -1458,18 +1458,23 @@
 
   /* === COZY AI ENTRY BUTTON (on step/tips/tipsStep) === */
   .cozy-entry-btn {
-    height: 48px;
-    width: auto;
-    border-radius: 0;
+    width: 96px;
+    height: 44px;
+    border-radius: 296px;
     border: none;
-    background: transparent;
+    background: rgba(0, 0, 0, 0);
     box-shadow: none;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     padding: 0;
   }
   .cozy-entry-btn:active { opacity: 0.7; }
-  .cozy-entry-btn img { height: 100%; width: auto; display: block; }
+  .cozy-entry-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
   .step-header .cozy-entry-btn { margin-left: auto; }
 
   /* Tips page: fade mask sitting behind the floating button so tip cards
@@ -1794,12 +1799,15 @@
     box-shadow: 0 4px 16px rgba(74,6,18,0.10);
     opacity: 0;
     pointer-events: none;
-    transition: opacity .25s ease, transform .25s ease;
+    /* Default (no .show) is the "leaving" state: 300ms fade out */
+    transition: opacity 300ms ease, transform 300ms ease;
     white-space: nowrap;
   }
   .cozy-history-hint.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+    /* Fade in is faster: 200ms */
+    transition: opacity 200ms ease, transform 200ms ease;
   }
   .cozy-history-hint svg {
     width: 14px; height: 14px;
@@ -3668,15 +3676,22 @@ async function prefetchCozyHistory() {
   maybeShowHistoryHint();
 }
 
-let cozyHintTimer = null;
+// Hint choreography: delay 600-800ms → fade in 200ms → hold 2.5s → fade out 300ms
+let cozyHintShowTimer = null;
+let cozyHintHideTimer = null;
 function maybeShowHistoryHint() {
   const hint = document.getElementById('cozyHistoryHint');
   if (!hint) return;
   if (!cozyHistory.length) return;
   if (document.querySelector('.page.active')?.id !== 'cozyWelcome') return;
-  clearTimeout(cozyHintTimer);
-  requestAnimationFrame(() => hint.classList.add('show'));
-  cozyHintTimer = setTimeout(() => hint.classList.remove('show'), 2000);
+  clearTimeout(cozyHintShowTimer);
+  clearTimeout(cozyHintHideTimer);
+  hint.classList.remove('show');
+  const enterDelay = 600 + Math.floor(Math.random() * 201); // 600-800ms
+  cozyHintShowTimer = setTimeout(() => {
+    hint.classList.add('show');
+    cozyHintHideTimer = setTimeout(() => hint.classList.remove('show'), 2500);
+  }, enterDelay);
 }
 
 function autoGrowCozyInput(el) {
