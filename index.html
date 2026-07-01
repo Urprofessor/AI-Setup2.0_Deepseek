@@ -1666,22 +1666,20 @@
     height: auto;               /* natural aspect */
     margin: 6px auto 16px;      /* 16px gap to greeting */
   }
-  .cozy-greeting {
-    width: 361px;
-    max-width: 100%;
-    text-align: center;
-    margin: 0 0 28px;
-  }
-  .cozy-greeting .cozy-greet-line1,
-  .cozy-greeting .cozy-greet-line2 {
+  /* No wrapper — greeting lines sit directly in .cozy-content flow */
+  .cozy-greet-line1,
+  .cozy-greet-line2 {
     font-family: 'Denton', serif;
     font-size: 28px;
     font-weight: 400;
     line-height: 140%;
     color: #240F1B;
+    text-align: center;
     margin: 0;
+    width: 100%;
+    max-width: 361px;
   }
-  .cozy-greeting .cozy-greet-name { color: #770523; }
+  .cozy-greet-name { color: #770523; }
   .cozy-pills {
     width: 100%;
     display: flex;
