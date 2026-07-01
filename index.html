@@ -1656,11 +1656,10 @@
     overflow-y: auto;
   }
   .cozy-ip-avatar {
-    display: flex;
-    width: 139.815px;
-    height: 128px;
+    display: block;
+    width: 33vw;
+    height: auto;          /* keep natural aspect */
     object-fit: contain;
-    align-items: center;
     margin: 6px 0 72px;
     flex-shrink: 0;
   }
@@ -1684,22 +1683,25 @@
     width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: center;   /* center each pill horizontally */
     gap: 10px;
     margin-top: auto;
     padding-bottom: 18px;
   }
   .cozy-pill {
-    width: 100%;
-    text-align: left;
+    width: auto;           /* shrink to text width */
+    max-width: 100%;
+    text-align: center;
     background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(74,6,18,0.08);
+    border: none;
     border-radius: 20px;
-    padding: 14px 18px;
+    padding: 12px 18px;
     font-size: 15px;
     color: #4A0612;
     font-family: inherit;
     cursor: pointer;
     line-height: 1.35;
+    white-space: nowrap;
   }
   .cozy-pill:active { background: rgba(255,255,255,0.95); }
 
@@ -2332,7 +2334,7 @@
       <h1 class="tips-title">Get the most from Air One</h1>
     </div>
     <div class="tip-card" onclick="openTipStep(0)">
-      <img class="tip-icon" src="icon/Property%201%3D01-meet-your-parts%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips1.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>Unbox & Inspect</h4>
         <p>Meet all parts.</p>
@@ -2340,7 +2342,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
     <div class="tip-card" onclick="openTipStep(1)">
-      <img class="tip-icon" src="icon/Property%201%3D04-find-your-flange-size%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips2.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>Measure Flange Size</h4>
         <p>Find your perfect fit.</p>
@@ -2348,7 +2350,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
     <div class="tip-card" onclick="openTipStep(2)">
-      <img class="tip-icon" src="icon/Property%201%3D02-know-what-to-wash%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips3.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>Disassemble Parts</h4>
         <p>Take it apart safely.</p>
@@ -2356,7 +2358,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
     <div class="tip-card" onclick="openTipStep(3)">
-      <img class="tip-icon" src="icon/Property%201%3D03-clean-before-first-use%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips4.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>Clean & Sanitize</h4>
         <p>Keep every part clean.</p>
@@ -2364,7 +2366,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
     <div class="tip-card" onclick="openTipStep(4)">
-      <img class="tip-icon" src="icon/Property%201%3D05-assemble-your-pump%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips5.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>Assemble the Pump</h4>
         <p>Put it all together.</p>
@@ -2372,7 +2374,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
     <div class="tip-card" onclick="openTipStep(5)">
-      <img class="tip-icon" src="icon/Property%201%3D09-wear-it-right%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips6.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>Wear It Right</h4>
         <p>Position and seal correctly.</p>
@@ -2380,7 +2382,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
     <div class="tip-card" onclick="openTipStep(6)">
-      <img class="tip-icon" src="icon/Property%201%3D10-start-your-first-session%201.png" alt="" draggable="false">
+      <img class="tip-icon" src="icon/tips7.png" alt="" draggable="false">
       <div class="tip-text">
         <h4>First Session</h4>
         <p>Connect and start pumping.</p>
@@ -4041,14 +4043,19 @@ async function cozyStreamReply() {
           const json = JSON.parse(payload);
           const delta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
           if (delta) {
-            if (!bubbleEl) {
+            assistantText += delta;
+            const stripped = assistantText.replace(COZY_HANDOFF_TAG, '').replace(COZY_EXIT_TAG, '');
+            // Skip bubble creation while the entire response is just a control
+            // tag — that's the handoff path (no CozyAI reply shown).
+            if (!bubbleEl && stripped.trim()) {
               thinkingRow.remove();
               const placeholder = appendCozyMessageEl({ role: 'assistant', content: '', persona: personaAtStart });
               bubbleEl = placeholder.bubble;
             }
-            assistantText += delta;
-            bubbleEl.textContent = assistantText.replace(COZY_HANDOFF_TAG, '').replace(COZY_EXIT_TAG, '');
-            document.getElementById('cozyMessages').scrollTop = document.getElementById('cozyMessages').scrollHeight;
+            if (bubbleEl) {
+              bubbleEl.textContent = stripped;
+              document.getElementById('cozyMessages').scrollTop = document.getElementById('cozyMessages').scrollHeight;
+            }
           }
         } catch (e) { /* ignore malformed SSE chunk */ }
       }
@@ -4066,6 +4073,17 @@ async function cozyStreamReply() {
   const hasHandoff = assistantText.includes(COZY_HANDOFF_TAG);
   const hasExit = assistantText.includes(COZY_EXIT_TAG);
   const cleanText = assistantText.replace(COZY_HANDOFF_TAG, '').replace(COZY_EXIT_TAG, '').trim();
+
+  // Handoff path: no CozyAI reply is shown or saved — jump straight to card.
+  if (personaAtStart === 'qa' && hasHandoff) {
+    if (bubbleEl) {
+      const row = bubbleEl.closest('.cozy-msg-row');
+      if (row) row.remove();
+    }
+    appendCozyHandoffCard();
+    return;
+  }
+
   if (!bubbleEl && cleanText) {
     const placeholder = appendCozyMessageEl({ role: 'assistant', content: cleanText, persona: personaAtStart });
     bubbleEl = placeholder.bubble;
@@ -4078,9 +4096,6 @@ async function cozyStreamReply() {
   cozyHistory.push(assistantMsg);
   saveCozyHistory();
 
-  if (personaAtStart === 'qa' && hasHandoff) {
-    appendCozyHandoffCard();
-  }
   if (personaAtStart === 'support' && hasExit) {
     cozyPersona = 'qa';
     cozyCurrentSupportAvatar = null;
