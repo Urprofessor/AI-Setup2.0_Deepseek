@@ -1,4 +1,4 @@
-const CACHE = 'v2';
+const CACHE = 'v3';
 
 const PRECACHE = [
   '/',
@@ -84,6 +84,15 @@ self.addEventListener('fetch', e => {
 
   // Never cache API routes — responses are dynamic and per-device.
   if (url.pathname.startsWith('/api/')) return;
+
+  // Never cache HTML / navigation requests — always fetch fresh so UI updates
+  // ship immediately and don't get stuck behind a stale cached index.html.
+  if (e.request.mode === 'navigate' ||
+      e.request.destination === 'document' ||
+      url.pathname === '/' ||
+      url.pathname.endsWith('.html')) {
+    return;
+  }
 
   const isVideo = VIDEOS.some(v => url.pathname.endsWith(v.replace(/^.*\//, '/')));
 
