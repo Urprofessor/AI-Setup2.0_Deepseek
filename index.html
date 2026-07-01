@@ -1457,24 +1457,22 @@
   .tip-chevron { color: #999; width: 16px; height: 16px; }
 
   /* === COZY AI ENTRY BUTTON (on step/tips/tipsStep) === */
+  /* CozyAI top-right entry — single <img> element, no button wrapper.
+     object-fit: cover crops the shadow padding baked into the PNG so the
+     visible pill fills the 96×44 slot. */
   .cozy-entry-btn {
     width: 96px;
     height: 44px;
     border-radius: 296px;
-    border: none;
     background: rgba(0, 0, 0, 0);
-    box-shadow: none;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
+    border: none;
     padding: 0;
+    cursor: pointer;
+    display: block;
+    object-fit: cover;
+    object-position: center 42%;
   }
   .cozy-entry-btn:active { opacity: 0.7; }
-  .cozy-entry-btn img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-  }
   .step-header .cozy-entry-btn { margin-left: auto; }
 
   /* Tips page: fade mask sitting behind the floating button so tip cards
@@ -1579,6 +1577,8 @@
   .cozy-inputbar input,
   .cozy-inputbar textarea {
     flex: 1;
+    min-width: 0;                 /* let flex shrink; without this flex:1 stalls */
+    display: block;
     border: none;
     outline: none;
     background: transparent;
@@ -1589,13 +1589,15 @@
     padding: 0;
     margin: 0;
     resize: none;
-    max-height: calc(22px * 5); /* 5 lines cap */
-    overflow-y: hidden; /* JS flips to auto when past 5 lines */
+    min-height: 22px;             /* guarantee 1-line visibility */
+    height: 22px;                 /* initial baseline, JS overrides on grow */
+    max-height: calc(22px * 5);   /* 5 lines cap */
+    overflow-y: hidden;           /* JS flips to auto when past 5 lines */
   }
   .cozy-inputbar input::placeholder,
   .cozy-inputbar textarea::placeholder { color: #B0AAAC; }
   .cozy-inputbar .plus-icon,
-  .cozy-inputbar .cozy-send-btn { margin-bottom: 2px; align-self: flex-end; }
+  .cozy-inputbar .cozy-send-btn { align-self: flex-end; margin-bottom: 1px; }
   .cozy-inputbar .plus-icon {
     width: 20px; height: 20px;
     flex-shrink: 0;
@@ -1992,9 +1994,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
     </button>
     <span class="step-title">Air One Setup</span>
-    <button class="cozy-entry-btn" onclick="openCozyAI({from:'step', stepIndex: currentStep})" aria-label="Ask CozyAI">
-      <img src="images/Cozy%20AI%20button%20up.png" alt="" draggable="false">
-    </button>
+    <img class="cozy-entry-btn" src="images/Cozy%20AI%20button%20up.png" onclick="openCozyAI({from:'step', stepIndex: currentStep})" alt="Ask CozyAI" role="button" tabindex="0" draggable="false">
   </div>
   <div class="step-progress">
     <div class="step-progress-label" id="stepProgressLabel">Step 1</div>
@@ -2383,9 +2383,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
     <span class="step-title">Air One Tips</span>
-    <button class="cozy-entry-btn" onclick="openCozyAI({from:'tipsStep', stepIndex: currentTipStepIdx})" aria-label="Ask CozyAI">
-      <img src="images/Cozy%20AI%20button%20up.png" alt="" draggable="false">
-    </button>
+    <img class="cozy-entry-btn" src="images/Cozy%20AI%20button%20up.png" onclick="openCozyAI({from:'tipsStep', stepIndex: currentTipStepIdx})" alt="Ask CozyAI" role="button" tabindex="0" draggable="false">
   </div>
   <div class="step-progress">
     <div class="step-progress-label" id="tipsStepProgressLabel">Step 1</div>
