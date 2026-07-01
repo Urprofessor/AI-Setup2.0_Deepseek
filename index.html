@@ -1706,14 +1706,19 @@
     color: #1A1A1A;
     border-radius: 18px 18px 4px 18px;
     padding: 12px 16px;
+  }
+  /* Line clamp lives on inner element to avoid the L6-bleed bug when
+     -webkit-line-clamp shares a box with padding. */
+  .cozy-msg-row.from-user .cozy-msg-clamp {
     display: -webkit-box;
     -webkit-line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Explicit px line-height + max-height stops fractional-line bleed of L6 */
     line-height: 24px;
-    max-height: calc(5 * 24px + 24px);
+    max-height: 120px; /* 5 × 24 exactly */
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .cozy-msg-row.from-ai .cozy-msg-bubble {
     color: #1A1A1A;
@@ -3802,7 +3807,15 @@ function appendCozyMessageEl(m) {
   }
   const bubble = document.createElement('div');
   bubble.className = 'cozy-msg-bubble';
-  bubble.textContent = m.content;
+  if (m.role === 'user') {
+    // Nested clamp element — line-clamp reliably caps at 5 without L6 bleed.
+    const clamp = document.createElement('div');
+    clamp.className = 'cozy-msg-clamp';
+    clamp.textContent = m.content;
+    bubble.appendChild(clamp);
+  } else {
+    bubble.textContent = m.content;
+  }
   row.appendChild(bubble);
 
   if (m.reference) {
