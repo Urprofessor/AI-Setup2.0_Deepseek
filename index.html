@@ -1461,6 +1461,19 @@
   .cozy-entry-btn img { height: 100%; width: auto; display: block; }
   .step-header .cozy-entry-btn { margin-left: auto; }
 
+  /* Tips page: fade mask sitting behind the floating button so tip cards
+     scrolling behind blend into the bottom instead of hard-clipping. */
+  .cozy-float-mask {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 125px;
+    background: linear-gradient(180deg, rgba(255, 247, 248, 0.00) -5.91%, #FFF7F8 20%);
+    pointer-events: none;
+    z-index: 4;
+  }
+
   /* Tips page: bottom floating "Ask CozyAI" pill */
   .cozy-float-btn {
     position: fixed;
@@ -2307,6 +2320,7 @@
       <svg class="tip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
     </div>
   </div>
+  <div class="cozy-float-mask" aria-hidden="true"></div>
   <button class="cozy-float-btn" onclick="openCozyAI({from:'tips'})" aria-label="Ask CozyAI">
     <img src="images/cozyAIbutton%20down.png" alt="" draggable="false">
   </button>
