@@ -1619,6 +1619,81 @@
   }
   .cozy-inputbar input::placeholder,
   .cozy-inputbar textarea::placeholder { color: #B0AAAC; }
+  .cozy-inputbar .plus-icon { cursor: pointer; }
+
+  /* Pending image attachments strip — sits above input bar, only visible when
+     the user has selected images but hasn't sent yet. */
+  .cozy-attachments {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px 8px;
+    overflow-x: auto;
+    position: relative;
+    z-index: 6;
+    flex-shrink: 0;
+  }
+  .cozy-attachments:empty { display: none; }
+  .cozy-attachment-thumb {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: #f5f2f2;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .cozy-attachment-thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .cozy-attachment-remove {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border: none;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Image grid inside a user bubble */
+  .cozy-msg-images {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 6px;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .cozy-msg-images.count-1 { grid-template-columns: 1fr; }
+  .cozy-msg-images.count-1 img { max-height: 320px; aspect-ratio: auto; object-fit: cover; }
+  .cozy-msg-images.count-2 { grid-template-columns: 1fr 1fr; }
+  .cozy-msg-images.count-3,
+  .cozy-msg-images.count-4 { grid-template-columns: 1fr 1fr; }
+  .cozy-msg-images img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    cursor: zoom-in;
+    background: #eee;
+    display: block;
+  }
+  .cozy-msg-images.count-1 { max-width: 220px; }
+  .cozy-msg-images.count-2,
+  .cozy-msg-images.count-3,
+  .cozy-msg-images.count-4 { max-width: 260px; }
+  /* User bubble with images: bubble hugs images tight — smaller padding */
+  .cozy-msg-row.from-user .cozy-msg-bubble.has-images { padding: 6px 6px; }
+  .cozy-msg-row.from-user .cozy-msg-bubble.has-images .cozy-msg-clamp { padding: 6px 10px; }
   .cozy-inputbar textarea { padding-right: 38px; } /* reserve space for absolute send-btn */
   .cozy-inputbar .plus-icon {
     width: 20px; height: 20px;
@@ -2493,9 +2568,11 @@
     <div class="cozy-pills" id="cozyPills"></div>
   </div>
   <div class="cozy-float-mask" aria-hidden="true"></div>
+  <div class="cozy-attachments" id="cozyWelcomeAttachments"></div>
+  <input type="file" accept="image/*" multiple hidden id="cozyWelcomeFile" onchange="onCozyFilePick(event, 'welcome')">
   <div class="cozy-inputbar-wrap">
     <div class="cozy-inputbar" id="cozyWelcomeInputBar">
-      <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" onclick="document.getElementById('cozyWelcomeFile').click()"><path d="M12 5v14M5 12h14"/></svg>
       <textarea id="cozyWelcomeInput" rows="1" placeholder="Ask anything" autocomplete="off" oninput="onCozyWelcomeInput()" onkeydown="handleCozyInputKey(event, sendFromWelcome)"></textarea>
       <button class="cozy-send-btn" onclick="sendFromWelcome()" aria-label="Send">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
@@ -2516,9 +2593,11 @@
   </div>
   <div class="cozy-messages" id="cozyMessages"></div>
   <div class="cozy-float-mask" aria-hidden="true"></div>
+  <div class="cozy-attachments" id="cozyChatAttachments"></div>
+  <input type="file" accept="image/*" multiple hidden id="cozyChatFile" onchange="onCozyFilePick(event, 'chat')">
   <div class="cozy-inputbar-wrap">
     <div class="cozy-inputbar" id="cozyChatInputBar">
-      <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" onclick="document.getElementById('cozyChatFile').click()"><path d="M12 5v14M5 12h14"/></svg>
       <textarea id="cozyChatInput" rows="1" placeholder="Ask anything" autocomplete="off" oninput="onCozyChatInput()" onkeydown="handleCozyInputKey(event, sendFromChat)"></textarea>
       <button class="cozy-send-btn" onclick="sendFromChat()" aria-label="Send">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
@@ -3749,6 +3828,57 @@ function maybeShowHistoryHint() {
   }, enterDelay);
 }
 
+// ---- image upload ----
+const COZY_MAX_IMAGE_MB = 5;
+const COZY_MAX_IMAGES_PER_MSG = 4;
+const cozyPendingImages = { welcome: [], chat: [] };
+
+function readImageAsDataUrl(file) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith('image/')) return resolve(null);
+    if (file.size > COZY_MAX_IMAGE_MB * 1024 * 1024) {
+      alert(`"${file.name}" is over ${COZY_MAX_IMAGE_MB}MB — skipped.`);
+      return resolve(null);
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function onCozyFilePick(event, which) {
+  const files = Array.from(event.target.files || []);
+  const room = COZY_MAX_IMAGES_PER_MSG - cozyPendingImages[which].length;
+  if (room <= 0) {
+    alert(`Max ${COZY_MAX_IMAGES_PER_MSG} images per message.`);
+    event.target.value = '';
+    return;
+  }
+  const accepted = files.slice(0, room);
+  const results = await Promise.all(accepted.map(readImageAsDataUrl));
+  results.filter(Boolean).forEach(url => cozyPendingImages[which].push(url));
+  renderCozyAttachmentStrip(which);
+  event.target.value = ''; // let the same file be re-picked
+}
+
+function renderCozyAttachmentStrip(which) {
+  const strip = document.getElementById(which === 'welcome' ? 'cozyWelcomeAttachments' : 'cozyChatAttachments');
+  if (!strip) return;
+  strip.innerHTML = '';
+  cozyPendingImages[which].forEach((url, idx) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'cozy-attachment-thumb';
+    thumb.innerHTML = `<img src="${url}" alt=""><button class="cozy-attachment-remove" onclick="removeCozyAttachment('${which}', ${idx})" aria-label="Remove">&times;</button>`;
+    strip.appendChild(thumb);
+  });
+}
+
+function removeCozyAttachment(which, idx) {
+  cozyPendingImages[which].splice(idx, 1);
+  renderCozyAttachmentStrip(which);
+}
+
 function autoGrowCozyInput(el) {
   el.style.height = 'auto';
   const lineHeight = 22;
@@ -3785,19 +3915,25 @@ function onCozyChatInput() {
 function sendFromWelcome() {
   const input = document.getElementById('cozyWelcomeInput');
   const text = input.value.trim();
-  if (!text) return;
+  const images = cozyPendingImages.welcome.slice();
+  if (!text && !images.length) return;
   input.value = '';
-  onCozyWelcomeInput(); // reset textarea height + has-text
+  cozyPendingImages.welcome = [];
+  renderCozyAttachmentStrip('welcome');
+  onCozyWelcomeInput();
   enterCozyChat();
-  sendCozyMessage(text);
+  sendCozyMessage(text, images);
 }
 function sendFromChat() {
   const input = document.getElementById('cozyChatInput');
   const text = input.value.trim();
-  if (!text || cozyStreaming) return;
+  const images = cozyPendingImages.chat.slice();
+  if ((!text && !images.length) || cozyStreaming) return;
   input.value = '';
-  onCozyChatInput(); // reset textarea height + has-text
-  sendCozyMessage(text);
+  cozyPendingImages.chat = [];
+  renderCozyAttachmentStrip('chat');
+  onCozyChatInput();
+  sendCozyMessage(text, images);
 }
 
 function enterCozyChat() {
@@ -3878,11 +4014,26 @@ function appendCozyMessageEl(m) {
   const bubble = document.createElement('div');
   bubble.className = 'cozy-msg-bubble';
   if (m.role === 'user') {
-    // Nested clamp element — line-clamp reliably caps at 5 without L6 bleed.
-    const clamp = document.createElement('div');
-    clamp.className = 'cozy-msg-clamp';
-    clamp.textContent = m.content;
-    bubble.appendChild(clamp);
+    if (m.images && m.images.length) {
+      bubble.classList.add('has-images');
+      const grid = document.createElement('div');
+      grid.className = 'cozy-msg-images count-' + Math.min(m.images.length, 4);
+      m.images.slice(0, 4).forEach(url => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.loading = 'lazy';
+        img.onclick = () => window.open(url, '_blank');
+        grid.appendChild(img);
+      });
+      bubble.appendChild(grid);
+    }
+    if (m.content) {
+      // Nested clamp element — line-clamp reliably caps at 5 without L6 bleed.
+      const clamp = document.createElement('div');
+      clamp.className = 'cozy-msg-clamp';
+      clamp.textContent = m.content;
+      bubble.appendChild(clamp);
+    }
   } else {
     bubble.textContent = m.content;
   }
@@ -4046,13 +4197,14 @@ function cozyDetectKeywordTrigger(text) {
   return COZY_KEYWORDS.some(k => low.includes(k.toLowerCase()));
 }
 
-async function sendCozyMessage(text) {
+async function sendCozyMessage(text, images = []) {
   const userMsg = { role: 'user', content: text, persona: cozyPersona };
+  if (images && images.length) userMsg.images = images;
   cozyHistory.push(userMsg);
   appendCozyMessageEl(userMsg);
   saveCozyHistory();
 
-  if (cozyPersona === 'qa' && cozyDetectKeywordTrigger(text)) {
+  if (cozyPersona === 'qa' && text && cozyDetectKeywordTrigger(text)) {
     appendCozyHandoffCard();
     return;
   }
@@ -4075,7 +4227,15 @@ async function cozyStreamReply() {
         persona: personaAtStart,
         messages: cozyHistory
           .filter(m => m.role === 'user' || m.role === 'assistant')
-          .map(m => ({ role: m.role, content: m.content }))
+          .map(m => {
+            // AI is text-only — flag attached images in the payload so it
+            // acknowledges them instead of ignoring the user's intent.
+            const n = m.images && m.images.length;
+            const prefix = n ? `[User attached ${n} image${n > 1 ? 's' : ''}]` : '';
+            const text = m.content || '';
+            const content = prefix && text ? `${prefix} ${text}` : (prefix || text);
+            return { role: m.role, content };
+          })
       })
     });
     if (!res.ok || !res.body) throw new Error('AI request failed');
@@ -4179,10 +4339,17 @@ function saveCozyHistory() {
   clearTimeout(cozySaveTimer);
   cozySaveTimer = setTimeout(async () => {
     try {
+      // Strip base64 image payloads before persisting — they're session-only.
+      // Keep imageCount so future rehydrates can show a "N images (expired)" hint.
+      const sanitized = cozyHistory.map(m => {
+        if (!m.images || !m.images.length) return m;
+        const { images, ...rest } = m;
+        return { ...rest, imageCount: images.length };
+      });
       await fetch('/api/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: getCozyDeviceId(), messages: cozyHistory })
+        body: JSON.stringify({ deviceId: getCozyDeviceId(), messages: sanitized })
       });
     } catch (e) { /* best-effort persistence */ }
   }, 400);
