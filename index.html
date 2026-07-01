@@ -1531,9 +1531,19 @@
   /* === COZY AI: shared === */
   .cozy-page { background: #FFFBFB; }
   .cozy-page.active { display: flex; flex-direction: column; }
-  /* Removed the 320px pink gradient block — it painted a hard edge under the IP
-     avatar that read as a "container". Page bg (#FFFBFB) now shows through. */
-  .cozy-bg { display: none; }
+  /* Full-page background layer for cozyWelcome & cozyChat — Background.png
+     anchored to the bottom, sits below everything (z-index 0). */
+  .cozy-bg {
+    position: absolute;
+    inset: 0;
+    background-image: url('images/Background.png');
+    background-size: 100% auto;
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-color: #FFFBFB;
+    pointer-events: none;
+    z-index: 0;
+  }
   .cozy-topbar {
     position: relative;
     z-index: 1;
