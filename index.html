@@ -1657,7 +1657,7 @@
   }
   .cozy-ip-avatar {
     display: block;
-    width: 33vw;                /* pure viewport-based, no container math */
+    width: 66vw;                /* doubled from 33vw */
     height: auto;               /* natural aspect */
     margin: 6px auto 72px;      /* auto centers regardless of parent */
   }
@@ -1785,18 +1785,22 @@
   .cozy-loading-text {
     font-size: 14px;
     color: #9B8488;
+    transition: opacity 200ms ease;
   }
+  .cozy-loading-text.swap { opacity: 0; }
   @keyframes cozySpin {
     to { transform: rotate(360deg); }
   }
   .cozy-reference {
-    margin-top: 8px;
-    font-size: 12px;
-    color: #9B8488;
-    border-top: 1px solid rgba(74,6,18,0.08);
-    padding-top: 6px;
+    margin-top: 10px;
+    font-family: "Aeonik Soft Pro", -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    letter-spacing: 0.28px;
+    color: rgba(36, 15, 27, 0.44);
   }
-  .cozy-reference a { color: #8A4A56; }
+  .cozy-reference a { color: rgba(36, 15, 27, 0.55); text-decoration: underline; }
 
   /* Tier-3 typography token (system messages, hints, loaders, date stamps) */
   .cozy-tier-3 {
@@ -3589,12 +3593,15 @@ let cozyCurrentSupportAvatar = null;
 // QA loading state: spinning icon + random "thinking" line, no avatar.
 // Drop your loading icon into images/system/ and update the path below if you use a different filename.
 const COZY_LOADING_ICON = 'images/system/loading.svg';
+// Loading text pools — rotated every 1s with a GPT-style fade transition
 const COZY_THINKING_TEXTS = [
   'Thinking...',
+  'Checking guidelines...',
   'Looking that up...',
-  'One moment...',
-  'Checking on that...',
-  'Working on it...',
+];
+const COZY_SUPPORT_THINKING_TEXTS = [
+  'typing...',
+  'reviewing your case...',
 ];
 
 function pickRandomSupportAvatar() {
@@ -3879,7 +3886,7 @@ function appendCozyMessageEl(m) {
   if (m.reference) {
     const ref = document.createElement('div');
     ref.className = 'cozy-reference';
-    ref.textContent = 'Reference: ' + m.reference;
+    ref.textContent = m.reference;
     row.appendChild(ref);
   }
   wrap.appendChild(row);
@@ -3891,20 +3898,45 @@ function appendCozyThinking() {
   const wrap = document.getElementById('cozyMessages');
   const row = document.createElement('div');
   row.className = 'cozy-msg-row from-ai';
-  if (cozyPersona === 'qa') {
-    const text = COZY_THINKING_TEXTS[Math.floor(Math.random() * COZY_THINKING_TEXTS.length)];
-    row.innerHTML = `<div class="cozy-loading">
-      <img class="cozy-loading-icon" src="${COZY_LOADING_ICON}" alt="">
-      <span class="cozy-loading-text">${text}</span>
-    </div>`;
-  } else {
+  const pool = cozyPersona === 'support' ? COZY_SUPPORT_THINKING_TEXTS : COZY_THINKING_TEXTS;
+
+  if (cozyPersona === 'support') {
     const av = cozyAvatarFor(cozyPersona);
     row.innerHTML = `<div class="cozy-msg-meta"><img class="cozy-msg-avatar" src="${av.img}" alt=""><span class="cozy-msg-name">${av.name}</span></div>
-      <div class="cozy-thinking"><span></span><span></span><span></span></div>`;
+      <div class="cozy-loading">
+        <img class="cozy-loading-icon" src="${COZY_LOADING_ICON}" alt="">
+        <span class="cozy-loading-text">${pool[0]}</span>
+      </div>`;
+  } else {
+    row.innerHTML = `<div class="cozy-loading">
+      <img class="cozy-loading-icon" src="${COZY_LOADING_ICON}" alt="">
+      <span class="cozy-loading-text">${pool[0]}</span>
+    </div>`;
   }
   wrap.appendChild(row);
   wrap.scrollTop = wrap.scrollHeight;
+
+  // Rotate text every 1s with a 200ms fade-out → swap → fade-in (GPT-style).
+  const textEl = row.querySelector('.cozy-loading-text');
+  let idx = 0;
+  const intervalId = setInterval(() => {
+    if (!row.isConnected || !textEl) { clearInterval(intervalId); return; }
+    textEl.classList.add('swap');
+    setTimeout(() => {
+      idx = (idx + 1) % pool.length;
+      textEl.textContent = pool[idx];
+      textEl.classList.remove('swap');
+    }, 200);
+  }, 1000);
+  row._cozyInterval = intervalId;
   return row;
+}
+
+// Central helper so any place that removes a thinking row also clears the timer.
+function removeCozyThinking(row) {
+  if (!row) return;
+  if (row._cozyInterval) clearInterval(row._cozyInterval);
+  if (row.isConnected) row.remove();
 }
 
 function appendCozyHandoffCard() {
@@ -4066,7 +4098,7 @@ async function cozyStreamReply() {
             // Skip bubble creation while the entire response is just a control
             // tag — that's the handoff path (no CozyAI reply shown).
             if (!bubbleEl && stripped.trim()) {
-              thinkingRow.remove();
+              removeCozyThinking(thinkingRow);
               const placeholder = appendCozyMessageEl({ role: 'assistant', content: '', persona: personaAtStart });
               bubbleEl = placeholder.bubble;
             }
@@ -4079,14 +4111,14 @@ async function cozyStreamReply() {
       }
     }
   } catch (e) {
-    thinkingRow.remove();
+    removeCozyThinking(thinkingRow);
     assistantText = "Sorry, I couldn't reach the assistant right now. Please try again.";
     const placeholder = appendCozyMessageEl({ role: 'assistant', content: assistantText, persona: personaAtStart });
     bubbleEl = placeholder.bubble;
   }
 
   cozyStreaming = false;
-  if (thinkingRow && thinkingRow.isConnected) thinkingRow.remove();
+  removeCozyThinking(thinkingRow);
 
   const hasHandoff = assistantText.includes(COZY_HANDOFF_TAG);
   const hasExit = assistantText.includes(COZY_EXIT_TAG);
@@ -4111,8 +4143,21 @@ async function cozyStreamReply() {
 
   const assistantMsg = { role: 'assistant', content: cleanText, persona: personaAtStart };
   if (personaAtStart === 'support') assistantMsg.avatar = cozyCurrentSupportAvatar || pickRandomSupportAvatar();
+  if (personaAtStart === 'qa' && cleanText) assistantMsg.reference = 'From Professional literature';
   cozyHistory.push(assistantMsg);
   saveCozyHistory();
+
+  // Streaming placeholder was built with an empty message so it doesn't have
+  // the reference footer yet — attach it now for QA replies.
+  if (assistantMsg.reference && bubbleEl) {
+    const row = bubbleEl.closest('.cozy-msg-row');
+    if (row && !row.querySelector('.cozy-reference')) {
+      const ref = document.createElement('div');
+      ref.className = 'cozy-reference';
+      ref.textContent = assistantMsg.reference;
+      row.appendChild(ref);
+    }
+  }
 
   if (personaAtStart === 'support' && hasExit) {
     cozyPersona = 'qa';
