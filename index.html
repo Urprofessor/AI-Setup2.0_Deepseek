@@ -1531,16 +1531,9 @@
   /* === COZY AI: shared === */
   .cozy-page { background: #FFFBFB; }
   .cozy-page.active { display: flex; flex-direction: column; }
-  .cozy-bg {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 320px;
-    background-image: url('images/Background.png');
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    z-index: 0;
-  }
+  /* Removed the 320px pink gradient block — it painted a hard edge under the IP
+     avatar that read as a "container". Page bg (#FFFBFB) now shows through. */
+  .cozy-bg { display: none; }
   .cozy-topbar {
     position: relative;
     z-index: 1;
@@ -1659,7 +1652,7 @@
     display: block;
     width: 66vw;                /* doubled from 33vw */
     height: auto;               /* natural aspect */
-    margin: 6px auto 72px;      /* auto centers regardless of parent */
+    margin: 6px auto 16px;      /* 16px gap to greeting */
   }
   .cozy-greeting {
     width: 361px;
@@ -1732,8 +1725,8 @@
     word-break: break-word;
   }
   .cozy-msg-row.from-user .cozy-msg-bubble {
-    background: #F5F2F2;
-    color: #1A1A1A;
+    background: rgba(49, 0, 13, 0.04);     /* #31000D @ 4% per design token */
+    color: #240F1B;
     border-radius: 18px 18px 4px 18px;
     padding: 12px 16px;
   }
