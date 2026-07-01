@@ -1657,11 +1657,9 @@
   }
   .cozy-ip-avatar {
     display: block;
-    width: 33vw;
-    height: auto;          /* keep natural aspect */
-    object-fit: contain;
-    margin: 6px 0 72px;
-    flex-shrink: 0;
+    width: 33vw;                /* pure viewport-based, no container math */
+    height: auto;               /* natural aspect */
+    margin: 6px auto 72px;      /* auto centers regardless of parent */
   }
   .cozy-greeting {
     width: 361px;
@@ -1683,15 +1681,15 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;   /* center each pill horizontally */
+    align-items: flex-start;   /* left-align each pill */
     gap: 10px;
     margin-top: auto;
     padding-bottom: 18px;
   }
   .cozy-pill {
-    width: auto;           /* shrink to text width */
+    width: auto;               /* shrink to text width */
     max-width: 100%;
-    text-align: center;
+    text-align: left;
     background: rgba(255,255,255,0.7);
     border: none;
     border-radius: 20px;
@@ -1855,6 +1853,12 @@
   .cozy-load-more:active:not(.done) { opacity: 0.6; }
 
   /* handoff card */
+  /* Handoff row always centers in the message stream */
+  .cozy-msg-row.handoff {
+    align-self: center;
+    align-items: center;
+    max-width: 92%;
+  }
   .cozy-handoff-card {
     background: #fff;
     border-radius: 18px;
@@ -1862,6 +1866,16 @@
     box-shadow: 0 4px 18px rgba(74,6,18,0.08);
     width: 100%;
     text-align: center;
+    transition: opacity 300ms ease;
+  }
+  .cozy-handoff-card.fading-out { opacity: 0; }
+  /* Static handoff icon (queue.png) — same slot as loading spinner but no spin */
+  .cozy-handoff-icon {
+    width: 32px;
+    height: 32px;
+    margin: 4px auto 10px;
+    display: block;
+    object-fit: contain;
   }
   .cozy-handoff-avatar {
     width: 44px; height: 44px;
@@ -3897,8 +3911,7 @@ function appendCozyHandoffCard() {
   cozyCurrentSupportAvatar = pickRandomSupportAvatar();
   const wrap = document.getElementById('cozyMessages');
   const row = document.createElement('div');
-  row.className = 'cozy-msg-row from-ai';
-  row.style.maxWidth = '92%';
+  row.className = 'cozy-msg-row handoff';
   row.innerHTML = `
     <div class="cozy-handoff-card">
       <img class="cozy-handoff-avatar" src="${cozyCurrentSupportAvatar}" alt="">
@@ -3946,6 +3959,7 @@ function transitionHandoffTo(state, card) {
     let queueNum = startQueue;
     const renderQueue = () => {
       card.innerHTML = `
+        <img class="cozy-handoff-icon" src="icon/queue.png" alt="">
         <p class="cozy-handoff-text">You're in the queue</p>
         <p class="cozy-handoff-queue">Estimated time: ${timeText}, Queue number: <strong>${queueNum}</strong></p>
         <button class="cozy-handoff-btn cozy-handoff-btn--ghost" onclick="cancelCozyHandoff(this)">Cancel request</button>`;
@@ -3965,7 +3979,11 @@ function transitionHandoffTo(state, card) {
       <img class="cozy-handoff-avatar" src="${av}" alt="">
       <p class="cozy-handoff-text">Sarah has been assigned</p>
       <p class="cozy-handoff-sub">She is joining the conversation...</p>`;
-    cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('joined', card), 1500));
+    // Stay 2.5s → fade out 300ms → joined
+    cozyHandoffTimers.push(setTimeout(() => {
+      card.classList.add('fading-out');
+      cozyHandoffTimers.push(setTimeout(() => transitionHandoffTo('joined', card), 300));
+    }, 2500));
     return;
   }
 
