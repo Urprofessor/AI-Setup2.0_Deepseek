@@ -1511,7 +1511,7 @@
     position: fixed;
     left: 16px;
     right: 16px;
-    bottom: calc(8px + env(safe-area-inset-bottom));
+    bottom: calc(32px + env(safe-area-inset-bottom));
     border: none;
     padding: 0;
     background: transparent;
@@ -1574,7 +1574,9 @@
     text-align: center;
     font-size: 11px;
     color: #B8939A;
-    padding: 8px 24px calc(10px + env(safe-area-inset-bottom));
+    /* padding-top 8 = gap between input bar and disclaimer text
+       padding-bottom 16 (+ safe-area) = disclaimer text to screen bottom */
+    padding: 8px 24px calc(16px + env(safe-area-inset-bottom));
     flex-shrink: 0;
     position: relative;
     z-index: 6; /* above .cozy-float-mask */
@@ -1754,8 +1756,12 @@
     word-break: break-word;
   }
   .cozy-msg-row.from-ai .cozy-msg-bubble {
-    color: #1A1A1A;
+    color: #240F1B;
     padding: 0 2px;
+    font-family: "Aeonik Soft Pro", -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 140%;                 /* 25.2px */
   }
   .cozy-thinking {
     display: flex;
